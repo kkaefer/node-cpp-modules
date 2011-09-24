@@ -9,5 +9,5 @@ def configure(ctx):
 
 def build(ctx):
   t = ctx.new_task_gen('cxx', 'shlib', 'node_addon')
-  t.source = ['modulename.cc']
+  t.source = ['modulename.cpp']
   t.target = 'modulename'

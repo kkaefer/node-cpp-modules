@@ -11,9 +11,9 @@ def build(ctx):
   t = ctx.new_task_gen('cxx', 'shlib', 'node_addon')
 
   # All source files to compile
-  t.source = ['modulename.cc']
+  t.source = ['modulename.cpp']
 
   # The name of the build result (the part before .node). If you change this,
   # make sure you also change the name specified in the "NODE_MODULE"
-  # registration in modulename.cc
+  # registration in modulename.cpp
   t.target = 'modulename'
