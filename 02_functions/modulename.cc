@@ -1,7 +1,7 @@
 #include <node/v8.h>
 #include <node/node.h>
 
-// STL
+// C standard library
 #include <cstdlib>
 #include <ctime>
 
@@ -29,7 +29,8 @@ void RegisterModule(Handle<Object> target) {
     srand(time(NULL));
 
     // target is the module object you see when require()ing the .node file.
-    target->Set(String::NewSymbol("random"), FunctionTemplate::New(Random)->GetFunction());
+    target->Set(String::NewSymbol("random"),
+        FunctionTemplate::New(Random)->GetFunction());
 }
 
 NODE_MODULE(modulename, RegisterModule);
