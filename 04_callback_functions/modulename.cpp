@@ -15,7 +15,7 @@ Handle<Value> Callback(const Arguments& args) {
             String::New("Second argument must be a callback function")));
     }
     // There's no ToFunction(), use a Cast instead.
-    Local<Function> callback = Local<Function>::Cast(args[args.Length() - 1]);
+    Local<Function> callback = Local<Function>::Cast(args[1]);
 
     // Our fake API allows the user to tell us whether we should cause an error.
     bool error = args[0]->BooleanValue();
