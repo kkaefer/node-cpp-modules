@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Writing node.js extensions with C++ and V8</title>
+  <meta name="viewport" content="width=1024, user-scalable=no">
+  <link rel="stylesheet" href="deck/core/deck.core.css" type="text/css">
+  <link rel="stylesheet" href="deck/extensions/codemirror/deck.codemirror.css">
+  <link rel="stylesheet" href="deck/themes/style/kkaefer.css" type="text/css">
+
+  <script src="deck/modernizr.custom.js"></script>
+</head>
+<body class="deck-container">
+
+
+<section class="slide" id="title">
+  <h2 class="title">Konstantin <strong>Käfer</strong></h2>
+  <div class="topright" style="background:url(github-twitter.png) no-repeat; padding:16px 16px 16px 138px;">kkaefer</div>
+  <h1 class="title"><strong>node.js</strong> extensions<br>with <strong>C++</strong> and V8</h1>
+</section>
+
+<section class="slide" id="about-me-devseed">
+  <iframe src="http://developmentseed.org/"></iframe>
+</section>
+
+<section class="slide" id="about-me-mapbox">
+  <iframe src="http://mapbox.com/"></iframe>
+</section>
+
+<section class="slide vertical-center" id="cpp-faster">
+  <div>
+    <h3>C++ is faster than JavaScript.
+          <em class="slide green" id="cpp-really-faster">Is it?</em></h3>
+  </div>
+</section>
+
+<section class="slide" id="write-it-in-javascript">
+  <h3>
+    If possible, write it in JavaScript.<br>
+    <small class="slide" id="slow-js-cpp-boundary">JS   ⟷ C++ boundary is slow to cross</small>
+  </h3>
+
+  <pre class="slide" id="benchmark-function">function() { return Math.floor(133.7 / Math.PI); }</pre>
+
+  <table class="graph" width="100%">
+    <tr class="slide" id="benchmark-native-js">
+      <td width="20%">native JS</td>
+      <td><span class="bar" style="width:100%">&nbsp;~83,333,333 calls/s</span></td>
+    </tr>
+    <tr class="slide" id="benchmark-v8-return">
+      <td>V8 return</td>
+      <td><span class="bar" style="width:18%"></span> ~13,333,333 calls/s</td>
+    </tr>
+    <tr class="slide" id="benchmark-v8-async">
+      <td>V8 async</td>
+      <td><span class="bar" style="width:2%"></span> ~1,745,200 calls/s</td>
+    </tr>
+    <tr class="slide" id="benchmark-thread-pool">
+      <td>thread pool</td>
+      <td><span class="bar" style="width:1px"></span> ~83,682 calls/s (0.1%)</td>
+    </tr>
+  </table>
+</section>
+
+<section class="slide vertical-center" id="why-cpp">
+  <div>
+    <h2>Why C++?</h2>
+
+    <ul class="right">
+      <li class="slide" id="why-cpp-v8">V8 is written in C++</li>
+      <li class="slide" id="why-cpp-existing">Wrapping existing C/C++ libraries</li>
+      <li class="slide" id="why-cpp-threads">Use more threads</li>
+    </ul>
+  </div>
+</section>
+
+<section class="slide" id="minimum">
+  <h2>The bare minimum</h2>
+  <div class="filename">modulename.cpp</div>
+  <textarea id="code" name="code" class="code" mode="text/x-c++src">
+#include <node/v8.h>
+#include <node/node.h>
+
+void RegisterModule(v8::Handle<v8::Object> target) {
+    // Add properties to target
+}
+
+// Register the module with node.
+NODE_MODULE(modulename, RegisterModule);</textarea>
+</section>
+
+<section class="slide" id="minimum-wscript">
+  <h2>The bare minimum</h2>
+  <div class="filename">wscript</div>
+  <textarea id="code" name="code" class="code" mode="python">
+#!/usr/bin/env python
+
+def set_options(ctx):
+  ctx.tool_options('compiler_cxx')
+
+def configure(ctx):
+  ctx.check_tool('compiler_cxx')
+  ctx.check_tool('node_addon')
+
+def build(ctx):
+  t = ctx.new_task_gen('cxx', 'shlib', 'node_addon')
+
+  t.source = ['modulename.cpp']
+
+  # Must be same as first parameter in NODE_MODULE.
+  t.target = 'modulename'</textarea>
+</section>
+
+<section class="slide vertical-center" id="sample-code">
+  <h3 class="callout"><a href="https://github.com/kkaefer/node-cpp-modules"><span style="color:#999">https://github.com/</span><br>kkaefer/node-cpp-modules</a></h1>
+</section>
+
+<section class="slide" id="configure">
+  <h2>Compiling</h2>
+  <pre>
+<span class="black">$ <span class="cursor"> </span><span class="slide" id="configure-1"><strong>node-waf configure</strong><span class="cursor"> </span></span></span><span class="slide" id="configure-2">
+Setting srcdir to               : <span class="green">/.../minimum</span>
+Setting blddir to               : <span class="green">/.../minimum/build</span>
+Checking for program g++ or c++ : <span class="green">/usr/bin/g++</span>
+Checking for program cpp        : <span class="green">/usr/bin/cpp</span>
+Checking for program ar         : <span class="green">/usr/bin/ar</span>
+Checking for program ranlib     : <span class="green">/usr/bin/ranlib</span>
+Checking for g++                : <span class="green">ok</span>
+Checking for node path          : <span class="yellow">not found</span>
+Checking for node prefix        : <span class="green">ok /usr/local</span>
+<span class="green">'configure' finished successfully (0.057s)</span>
+<span class="black">$ </span><span class="cursor"> </span></span><span class="slide black" id="configure-3"><strong>node-waf build</strong><span class="cursor"> </span></span>
+<span class="slide" id="configure-4"><span class="green">Waf: Entering directory `/.../minimum/build'</span>
+[1/2] <span class="green">cxx: modulename.cpp -> build/Release/modulename_1.o</span>
+[2/2] <span class="yellow">cxx_link: build/Release/modulename_1.o ->
+          build/Release/modulename.node</span>
+<span class="green">Waf: Leaving directory `/.../minimum/build'</span>
+<span class="green">'build' finished successfully (0.539s)</span>
+<span class="black">$ </span><span class="cursor"> </span></span>
+</pre>
+</section>
+
+
+<section class="slide" id="requiring">
+  <h2>Requiring from JavaScript</h2>
+  <pre>
+<span class="black">$ <strong>node</strong></span>
+> <span class="cursor"> </span><span class="slide" id="requiring-execute">require('./build/Release/modulename.node');<span class="cursor"> </span></span><span class="slide" id="empty-object">
+{}
+> <span class="cursor"> </span></span>
+</pre>
+</section>
+
+<section class="slide vertical-center" id="developing-cpp">
+  <h3>
+    Develop with<br>
+    <code>$ <em class="slide" id="developing-cpp-clang" style="visibility:visible">CXX=clang</em> node-waf configure</code><br>
+    <small class="slide" id="developing-cpp-gcc">Also test with GCC</small>
+  </h3>
+</section>
+
+<section class="slide" id="defining-functions">
+  <h2>Defining functions</h2>
+
+  <div class="filename">modulename.cpp</div>
+  <textarea id="code" name="code" class="code" mode="text/x-c++src">
+using namespace v8;
+
+Handle<Value> TheAnswer(const Arguments& args) {
+    HandleScope scope;
+
+    // Do stuff here.
+
+    return scope.Close(Integer::New(42));
+}</textarea>
+
+  <ul>
+    <li class="slide" id="handlescope"><code>HandleScope</code> cleans up handles created in this function</li>
+    <li class="slide" id="scope-close">Preserve returned value with <code>scope.Close()</code></li>
+  </ul>
+</section>
+
+<section class="slide" id="exporting-functions">
+  <h2>Exporting functions</h2>
+
+  <div class="filename">modulename.cpp</div>
+  <textarea id="code" name="code" class="code" mode="text/x-c++src">
+Handle<Value> TheAnswer(const Arguments& args) { ... }
+
+void RegisterModule(Handle<Object> target) {
+    NODE_SET_METHOD(target, "theAnswer", TheAnswer);
+}
+
+NODE_MODULE(modulename, RegisterModule);</textarea>
+
+  <ul>
+    <li class="slide" id="exports"><code>target</code> is what node.js calls <code>exports</code></li>
+  </ul>
+
+  <pre class="slide" id="exports-load">
+<span class="black">$ <strong>node</strong></span>
+> <span class="cursor"> </span><span class="slide" id="exports-load-1">var mod = require('./build/Release/modulename.node');<span class="cursor"> </span></span>
+<span class="slide" id="exports-load-2">{ theAnswer: <span class="green">[Function]</span> }
+> <span class="cursor"> </span></span><span class="slide" id="exports-load-3">mod.theAnswer();<span class="cursor"> </span></span>
+<span class="slide" id="exports-load-4"><span class="blue">42</span>
+> <span class="cursor"> </span></span>
+</pre>
+</section>
+
+<section class="slide" id="function-arguments">
+  <h2>Function arguments</h2>
+
+  <div class="filename">modulename.cpp</div>
+  <textarea id="code" name="code" class="code" mode="text/x-c++src">
+Handle<Value> Fibonacci(const Arguments& args) {
+    HandleScope scope;
+
+    if (args.Length() < 1) {
+        return ThrowException(Exception::TypeError(
+            String::New("First argument must be a number")));
+    }
+    Local<Integer> integer = args[0]->ToInteger();
+    int32_t seq = integer->Value();
+
+    // ...
+}</textarea>
+
+  <ul>
+    <li class="slide" id="args-value"><code>args</code> contains elements of type <code>Value</code></li>
+    <li class="slide" id="cast">Cast to specific type with <code>To*</code> functions</li>
+  </ul>
+</section>
+
+<section class="slide" id="value-tree">
+  <iframe src="http://izs.me/v8-docs/classv8_1_1Value.html"></iframe>
+</section>
+
+<section class="slide" id="callback-functions">
+  <h2>Callback functions</h2>
+
+  <div class="filename">modulename.cpp</div>
+  <textarea id="code" name="code" class="code" mode="text/x-c++src">
+Handle<Value> CallbackFunction(const Arguments& args) {
+    HandleScope scope;
+
+    if (!args[0]->IsFunction()) {
+        return ThrowException(Exception::TypeError(String::New(
+            "First argument must be a callback function")));
+    }
+    Local<Function> callback = Local<Function>::Cast(args[1]);
+
+    // ...
+
+    if (error) {
+        Local<Value> err = Exception::Error(
+            String::New("Something went wrong!"));
+        Local<Value> argv[] = { err };
+        callback->Call(Context::GetCurrent()->Global(), 1, argv);
+    } else {
+        Local<Value> argv[] = {
+            Local<Value>::New(Null()),
+            Local<Value>::New(Integer::New(42))
+        };
+        callback->Call(Context::GetCurrent()->Global(), 2, argv);
+    }
+
+    return Undefined();
+}</textarea>
+
+  <ul>
+    <li class="slide" id="calling-retains"><code>Call</code> automatically retains arguments</li>
+    <li class="slide" id="dont-forget-handlescope">Don’t forget <code>HandleScope scope</code> at the top</li>
+  </ul>
+</section>
+
+<section class="slide" id="threadpool">
+  <h2>The thread pool</h2>
+  <br><br>
+  <img src="worker-threads.png" style="display:inline-block; margin:0 30px">
+
+  <ul class="right">
+    <li class="slide" id="single-threaded">JavaScript is single-threaded</li>
+    <li class="slide" id="io-cpu-in-threadpool">I/O and CPU in thread pool</li>
+    <li class="slide" id="no-v8-access">No V8 access from worker!</li>
+  </ul>
+</section>
+
+<section class="slide" id="baton">
+  <h2>Passing data to the thread pool</h2>
+
+  <textarea id="code" name="code" class="code" mode="text/x-c++src">
+struct Baton {
+    uv_work_t request;
+    Persistent<Function> callback;
+    int error_code;
+    std::string error_message;
+
+    // Custom data
+    int32_t result;
+};</textarea>
+
+  <ul>
+    <li class="slide" id="baton-not-required">Not required, just a convention</li>
+    <li class="slide" id="persistent-handles"><code>Persistent</code> is a <code>Handle</code> that stays around until diposed of</li>
+  </ul>
+</section>
+
+
+
+<section class="slide" id="calling-async">
+  <h2>Calling asynchronously</h2>
+
+  <textarea id="code" name="code" class="code" mode="text/x-c++src">
+Handle<Value> Async(const Arguments& args) {
+    HandleScope scope;
+
+    if (!args[0]->IsFunction()) {
+        return ThrowException(Exception::TypeError(
+            String::New("Callback function required")));
+    }
+    Local<Function> callback = Local<Function>::Cast(args[0]);
+
+    Baton* baton = new Baton();
+    baton->request.data = baton;
+    baton->callback = Persistent<Function>::New(callback);
+
+    uv_queue_work(uv_default_loop(), &baton->request,
+        AsyncWork, AsyncAfter);
+
+    return Undefined();
+}</textarea>
+</section>
+
+<section class="slide" id="worker-function">
+  <h2>Worker function</h2>
+
+  <textarea id="code" name="code" class="code" mode="text/x-c++src">
+void AsyncWork(uv_work_t* req) {
+    // No HandleScope!
+
+    Baton* baton = static_cast<Baton*>(req->data);
+
+    // Do work in threadpool here.
+    // Set baton->error_code/message on failures.
+}</textarea>
+
+  <ul>
+    <li class="slide" id="asyncwork-blocking">Function <code>AsyncWork</code> is blocking</li>
+    <li class="slide" id="dont-do-v8-in-threadpool">Do <em class="red">not</em> use any V8 code, not even variable reads</li>
+    <li class="slide" id="convert-to-pod">Convert values to POD or C++ types and store them in the baton</li>
+  </ul>
+
+</section>
+
+
+<section class="slide" id="callback-function">
+  <h2>After function</h2>
+
+  <textarea id="code" name="code" class="code" mode="text/x-c++src">
+void AsyncAfter(uv_work_t* req) {
+    HandleScope scope;
+    Baton* baton = static_cast<Baton*>(req->data);
+
+    if (baton->error) {
+        // Call baton->callback with error object.
+    } else {
+        // Call baton->callback with results.
+    }
+
+    baton->callback.Dispose();
+    delete baton;
+}</textarea>
+
+  <ul>
+    <li class="slide" id="dispose-of-permanent-handles"><code>callback</code> function is Permanent, need to delete manually</li>
+  </ul>
+
+</section>
+
+<section class="slide" id="try-catch">
+  <h2>Wrap callbacks in TryCatch</h2>
+
+  <textarea id="code" name="code" class="code" mode="text/x-c++src">
+if (baton->error) {
+    Local<Value> err = Exception::Error(
+        String::New(baton->error_message.c_str()));
+    Local<Value> argv[] = { err };
+
+    TryCatch try_catch;
+    baton->callback->Call(
+        Context::GetCurrent()->Global(), 1, argv);
+
+    if (try_catch.HasCaught()) {
+        node::FatalException(try_catch);
+    }
+} else {
+    // ...
+}</textarea>
+
+  <ul>
+    <li class="slide" id="node-fatalexception"><code>node::FatalException</code> throws at the top of the event loop</li>
+    <li class="slide" id="catch-fatalexception">Catchable with <code>process.on('uncaughtException', ...)</code></li>
+  </ul>
+
+</section>
+
+
+<section class="slide vertical-center" id="api-how">
+  <div>
+    <h2>API design</h2>
+    <ul class="right">
+      <li class="slide" id="api-how-sync-async">Challenge: Synchronous ➞ Asynchronous</li>
+      <li class="slide" id="api-how-eventemitter">Use <code>EventEmitter</code></li>
+      <li class="slide" id="api-how-chainable">Chainable calls</li>
+      <li class="slide" id="api-how-instances">Instantiating objects vs. functions</li>
+      <li class="slide" id="api-how-hard-to-misuse">Make it hard to misuse</li>
+      <li class="slide" id="api-how-javascripty">Make it feel as “JavaScripty” as possible</li>
+    </ul>
+  </div>
+</section>
+
+
+<section class="slide" id="node-sqlite3">
+  <h2><code>node-sqlite3</code> API</h2>
+
+  <textarea id="code" name="code" class="code" mode="javascript">
+var db = new sqlite3.Database('file.db');
+
+db.run('CREATE TABLE baz (bar)');
+
+db.get('SELECT foo from bar', function(err, result) {
+
+});
+</textarea>
+
+  <ul>
+    <li class="slide" id="node-sqlite3-no-open">No <code>open()</code> function, <code>new</code> implicitly opens</li>
+    <li class="slide" id="node-sqlite3-autoexec">Statements are executed as soon as database is open</li>
+    <li class="slide" id="node-sqlite3-no-close">No need to “close” the database</li>
+    <li class="slide" id="node-sqlite3-events">No callback? <code>'error'</code> event on the <code>Database</code> object</li>
+</section>
+
+<section class="slide" id="node-blend">
+  <h2><code>node-blend</code> API</h2>
+  <ul>
+    <li>Blends two images of the same size</li>
+  </ul>
+
+  <textarea id="code" name="code" class="code" mode="javascript">
+var blend = require('blend');
+
+var image1 = <Buffer>;
+var image2 = <Buffer>;
+
+blend([ image1, image2 ], function(err, image) {
+    // image is a Buffer of blended pixels.
+});
+</textarea>
+
+  <ul>
+    <li class="slide" id="node-blend-no-obj">No need to create objects with <code>new</code> if you don’t require state</li>
+  </ul>
+</section>
+
+
+<section class="slide" id="more">
+  <h2>More documentation</h2>
+  <div class="topright" style="background:url(github-twitter.png) no-repeat; padding:16px 16px 16px 138px;">kkaefer</div>
+
+  <ul>
+    <li><a href="https://github.com/kkaefer/node-cpp-modules">https://github.com/kkaefer/node-cpp-modules</a></li>
+    <li><a href="http://izs.me/v8-docs/main.html">http://izs.me/v8-docs/main.html</a></li>
+    <li><a href="https://github.com/joyent/libuv/blob/master/include/uv.h">https://github.com/joyent/libuv/blob/master/include/uv.h</a></li>
+    <li><a href="http://create.tpsitulsa.com/wiki/V8_Cookbook">http://create.tpsitulsa.com/wiki/V8_Cookbook</a></li>
+  </ul>
+<br><br>
+  <ul>
+    <li>Thanks to <a href="https://twitter.com/mraleph">@mraleph</a> for answering lots of questions<br> and <a href="https://twitter.com/izs">@izs</a>, <a href="https://twitter.com/orlandov">@orlandov</a>, and all other extension authors!</li>
+  </ul>
+</section>
+
+<script src="deck/core/jquery-1.6.4.min.js"></script>
+<script src="deck/core/deck.core.js"></script>
+<script src="deck/extensions/goto/deck.goto.js"></script>
+<script src="deck/extensions/navigation/deck.navigation.js"></script>
+<script src="deck/extensions/status/deck.status.js"></script>
+<script src="deck/extensions/hash/deck.hash.js"></script>
+
+<script src="deck/extensions/codemirror/codemirror.js"></script>
+<script src="deck/extensions/codemirror/mode/javascript/javascript.js"></script>
+<script src="deck/extensions/codemirror/mode/clike/clike.js"></script>
+<script src="deck/extensions/codemirror/mode/python/python.js"></script>
+<script src="deck/extensions/codemirror/deck.codemirror.js"></script>
+<script>
+$(function() {
+  $.extend(true, $.deck.defaults, {
+    codemirror: {
+      theme: 'kkaefer'
+    }
+  });
+  $.deck('.slide');
+});
+</script>
+</body>
+</html>
