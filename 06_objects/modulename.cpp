@@ -49,7 +49,7 @@ Handle<Value> MyObject::New(const Arguments& args) {
 
 Handle<Value> MyObject::Value(const Arguments& args) {
     HandleScope scope;
-    
+
     // Retrieves the pointer to the wrapped object instance.
     MyObject* obj = ObjectWrap::Unwrap<MyObject>(args.This());
 
