@@ -1,5 +1,4 @@
-#include <node/v8.h>
-#include <node/node.h>
+#include <node.h>
 
 void RegisterModule(v8::Handle<v8::Object> target) {
     // You can add properties to the module in this function. It is called
