@@ -34,6 +34,12 @@ MyObject::MyObject(int val)
 Handle<Value> MyObject::New(const Arguments& args) {
     HandleScope scope;
 
+    if (!args.IsConstructCall()) {
+        return ThrowException(Exception::TypeError(
+            String::New("Use the new operator to create instances of this object."))
+        );
+    }
+
     if (args.Length() < 1) {
         return ThrowException(Exception::TypeError(
             String::New("First argument must be a number")));
