@@ -45,6 +45,7 @@ Handle<Value> Async(const Arguments& args) {
 
     // This creates our work request, including the libuv struct.
     Baton* baton = new Baton();
+    baton->error = false;
     baton->request.data = baton;
     baton->callback = Persistent<Function>::New(callback);
 
