@@ -7,5 +7,5 @@ void RegisterModule(v8::Handle<v8::Object> target) {
 
 // Register the module with node. Note that "modulename" must be the same as
 // the basename of the resulting .node file. You can specify that name in
-// wscript. When you change it there, change it here too.
+// binding.gyp ("target_name"). When you change it there, change it here too.
 NODE_MODULE(modulename, RegisterModule);
