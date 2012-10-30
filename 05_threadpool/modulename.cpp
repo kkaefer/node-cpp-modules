@@ -12,9 +12,6 @@ void AsyncAfter(uv_work_t* req);
 
 // We use a struct to store information about the asynchronous "work request".
 struct Baton {
-    // libuv's request struct.
-    uv_work_t request;
-
     // This handle holds the callback function we'll call after the work request
     // has been completed in a threadpool thread. It's persistent so that V8
     // doesn't garbage collect it away while our request waits to be processed.
@@ -43,16 +40,21 @@ Handle<Value> Async(const Arguments& args) {
     // There's no ToFunction(), use a Cast instead.
     Local<Function> callback = Local<Function>::Cast(args[0]);
 
-    // This creates our work request, including the libuv struct.
+    // The baton holds our custom status information for this asynchronous call,
+    // like the callback function we want to call when returning to the main
+    // thread and the status information.
     Baton* baton = new Baton();
     baton->error = false;
-    baton->request.data = baton;
     baton->callback = Persistent<Function>::New(callback);
+
+    // This creates the work request struct.
+    uv_work_t *req = new uv_work_t();
+    req->data = baton;
 
     // Schedule our work request with libuv. Here you can specify the functions
     // that should be executed in the threadpool and back in the main thread
     // after the threadpool function completed.
-    int status = uv_queue_work(uv_default_loop(), &baton->request, AsyncWork, AsyncAfter);
+    int status = uv_queue_work(uv_default_loop(), req, AsyncWork, AsyncAfter);
     assert(status == 0);
 
     return Undefined();
@@ -119,7 +121,11 @@ void AsyncAfter(uv_work_t* req) {
 
     // The callback is a permanent handle, so we have to dispose of it manually.
     baton->callback.Dispose();
+
+    // We also created the baton and the work_req struct with new, so we have to
+    // manually delete both.
     delete baton;
+    delete req;
 }
 
 void RegisterModule(Handle<Object> target) {
