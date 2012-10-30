@@ -6,6 +6,6 @@ Further references:
 
 * [V8 Doxygen](http://izs.me/v8-docs/main.html)
 * [uv.h](https://github.com/joyent/libuv/blob/master/include/uv.h)
-* [libev](http://pod.tst.eu/http://cvs.schmorp.de/libev/ev.pod)
+* [An introduction to libuv](http://nikhilm.github.com/uvbook/)
 * [v8 Cookbook](http://create.tpsitulsa.com/wiki/V8_Cookbook)
 * [Google's C++ style guide](http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml)
