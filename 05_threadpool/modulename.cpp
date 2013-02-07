@@ -54,7 +54,8 @@ Handle<Value> Async(const Arguments& args) {
     // Schedule our work request with libuv. Here you can specify the functions
     // that should be executed in the threadpool and back in the main thread
     // after the threadpool function completed.
-    int status = uv_queue_work(uv_default_loop(), req, AsyncWork, AsyncAfter);
+    int status = uv_queue_work(uv_default_loop(), req, AsyncWork,
+                               (uv_after_work_cb)AsyncAfter);
     assert(status == 0);
 
     return Undefined();
