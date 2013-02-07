@@ -56,7 +56,8 @@ Handle<Value> Fn3(const Arguments& args) {
     baton->request.data = baton;
     Local<Function> callback = Local<Function>::Cast(args[0]);
     baton->callback = Persistent<Function>::New(callback);
-    uv_queue_work(uv_default_loop(), &baton->request, Fn3Work, Fn3After);
+    uv_queue_work(uv_default_loop(), &baton->request, Fn3Work,
+                  (uv_after_work_cb)Fn3After);
     return Undefined();
 }
 
